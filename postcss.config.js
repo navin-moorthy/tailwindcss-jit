@@ -18,13 +18,8 @@ function formatNodes(root) {
 
 module.exports = {
   plugins: [
-    require('./src/index.js')({
-      // ...
-    }),
+    require('./src/index.js')({}),
     formatNodes,
-
-    // process.env.NODE_ENV === 'production' ?
-    // require('autoprefixer'),
-    // require('cssnano'),
+    ...(process.env.NODE_ENV === 'production' ? [require('autoprefixer'), require('cssnano')] : []),
   ],
 }

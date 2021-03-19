@@ -558,10 +558,11 @@ function collectLayerPlugins(root) {
 function registerPlugins(tailwindConfig, plugins, context) {
   let variantList = []
   let variantMap = new Map()
+  let reservedBits = 20n
   let offsets = {
-    base: 0n,
-    components: 0n,
-    utilities: 0n,
+    base: (1n << reservedBits) << 0n,
+    components: (1n << reservedBits) << 1n,
+    utilities: (1n << reservedBits) << 2n,
   }
 
   let pluginApi = buildPluginApi(tailwindConfig, context, {
@@ -585,7 +586,7 @@ function registerPlugins(tailwindConfig, plugins, context) {
     offsets.components,
     offsets.utilities,
   ])
-  let reservedBits = BigInt(highestOffset.toString(2).length)
+  reservedBits = BigInt(highestOffset.toString(2).length)
 
   context.layerOrder = {
     base: (1n << reservedBits) << 0n,
@@ -594,10 +595,10 @@ function registerPlugins(tailwindConfig, plugins, context) {
   }
 
   reservedBits += 3n
-  context.variantOrder = variantList.reduce(
-    (map, variant, i) => map.set(variant, (1n << BigInt(i)) << reservedBits),
-    new Map()
-  )
+  context.variantOrder = variantList.reduce((map, variant, i) => {
+    if (variant.includes('lib')) return map.set(variant, 1n)
+    return map.set(variant, (1n << BigInt(i)) << reservedBits)
+  }, new Map())
 
   context.minimumScreen = [...context.variantOrder.values()].shift()
 

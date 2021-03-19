@@ -58,12 +58,16 @@ function applyPrefix(matches, context) {
 // and `focus:hover:text-center` in the same project, but it doesn't feel
 // worth the complexity for that case.
 
-function applyVariant(variant, matches, context) {
+function applyVariant(variant, matches, hasLibVariant, context) {
   if (matches.length === 0) {
     return matches
   }
 
   if (context.variantMap.has(variant)) {
+    let updateSort =
+      hasLibVariant &&
+      !['sm', 'md', 'lg', 'xl', '2xl', 'motion-safe', 'dark', 'motion-reduce'].includes(variant)
+
     let [variantSort, applyThisVariant] = context.variantMap.get(variant)
     let result = []
 
@@ -103,7 +107,10 @@ function applyVariant(variant, matches, context) {
         continue
       }
 
-      let withOffset = [{ sort: variantSort | sort, layer, options }, container.nodes[0]]
+      let withOffset = [
+        { sort: updateSort ? 0n : variantSort | sort, layer, options },
+        container.nodes[0],
+      ]
       result.push(withOffset)
     }
 
@@ -162,6 +169,7 @@ function sortAgainst(toSort, against) {
 function* resolveMatches(candidate, context) {
   let separator = context.tailwindConfig.separator
   let [classCandidate, ...variants] = candidate.split(separator).reverse()
+  let hasLibVariant = variants.includes('lib')
 
   // Strip prefix
   // md:hover:tw-bg-black
@@ -187,7 +195,14 @@ function* resolveMatches(candidate, context) {
         for (let ruleSet of [].concat(plugin(modifier, pluginHelpers))) {
           let [rules, options] = parseRules(ruleSet, context.postCssNodeCache)
           for (let rule of rules) {
-            matches.push([{ ...sort, options: { ...sort.options, ...options } }, rule])
+            matches.push([
+              {
+                ...sort,
+                options: { ...sort.options, ...options },
+                sort: hasLibVariant ? 0n : sort.sort,
+              },
+              rule,
+            ])
           }
         }
       }
@@ -196,7 +211,14 @@ function* resolveMatches(candidate, context) {
         let ruleSet = plugin
         let [rules, options] = parseRules(ruleSet, context.postCssNodeCache)
         for (let rule of rules) {
-          matches.push([{ ...sort, options: { ...sort.options, ...options } }, rule])
+          matches.push([
+            {
+              ...sort,
+              options: { ...sort.options, ...options },
+              sort: hasLibVariant ? 0n : sort.sort,
+            },
+            rule,
+          ])
         }
       }
     }
@@ -204,7 +226,7 @@ function* resolveMatches(candidate, context) {
     matches = applyPrefix(matches, context)
 
     for (let variant of variants) {
-      matches = applyVariant(variant, matches, context)
+      matches = applyVariant(variant, matches, hasLibVariant, context)
     }
 
     for (let match of matches) {
